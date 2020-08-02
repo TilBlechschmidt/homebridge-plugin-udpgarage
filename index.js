@@ -33,15 +33,20 @@ function UDPGarageDoor(log, config) {
 
 UDPGarageDoor.prototype = {
 	getState: function(callback) {
+		console.log("garage door getState");
+		this.log("garage door getState");
 		callback(null, DoorState.CLOSED);
 	},
 
 	getTargetState: function(callback) {
+		console.log("garage door getTargetState");
+		this.log("garage door getTargetState");
 		callback(this.currentTargetState);
 	},
 
 	setTargetState: function(status, callback) {
 		console.log("new target state:", status);	
+		this.log("garage door new target:", status);
 		this.currentTargetState = status;
 
 		if (status == DoorState.OPEN) {
@@ -52,6 +57,8 @@ UDPGarageDoor.prototype = {
 	},
 
 	getServices:  function() {
+		console.log("garage door get services");
+		this.log("garage door get services");
 		return [this.infoService, this.garageDoorOpener];
 	},
 };
