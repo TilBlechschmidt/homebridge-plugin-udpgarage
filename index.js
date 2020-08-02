@@ -49,7 +49,7 @@ UDPGarageDoor.prototype = {
 		} else {
 			console.log("closing");
 		}
-	}
+	},
 
 	getServices:  function() {
 		return [this.infoService, this.garageDoorOpener];
