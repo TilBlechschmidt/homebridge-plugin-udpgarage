@@ -1,4 +1,5 @@
 "use strict";
+const dgram_1 = require("dgram");
 /*
  * IMPORTANT NOTICE
  *
@@ -24,7 +25,7 @@
 let hap;
 class UDPGarageDoor {
     constructor(log, config, api) {
-        this.switchOn = false;
+        this.currentState = hap.Characteristic.CurrentDoorState.CLOSED;
         this.log = log;
         this.name = config.name;
         // this.switchService = new hap.Service.Switch(this.name);
@@ -61,6 +62,19 @@ class UDPGarageDoor {
         this.informationService = new hap.Service.AccessoryInformation()
             .setCharacteristic(hap.Characteristic.Manufacturer, "Custom Manufacturer")
             .setCharacteristic(hap.Characteristic.Model, "Custom Model");
+        this.client = dgram_1.createSocket('udp4');
+        this.client.on('listening', () => {
+            const address = this.client.address();
+            this.log('UDP Client listening on ' + address);
+            this.client.setBroadcast(true);
+            this.client.setMulticastTTL(128);
+            this.client.addMembership('230.185.192.108', '0.0.0.0');
+        });
+        this.client.on('message', (message, remote) => {
+            this.log('A: Epic Command Received. Preparing Relay.');
+            this.log('B: From: ' + remote.address + ':' + remote.port + ' - ' + message);
+        });
+        this.client.bind();
         log.info("Switch finished initializing!");
     }
     /*

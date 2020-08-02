@@ -11,6 +11,8 @@ import {
     Service
 } from "homebridge";
 
+import {createSocket, Socket} from 'dgram';
+
 /*
  * IMPORTANT NOTICE
  *
@@ -45,9 +47,10 @@ export = (api: API) => {
 
 class UDPGarageDoor implements AccessoryPlugin {
 
+    private readonly client: Socket;
     private readonly log: Logging;
     private readonly name: string;
-    private switchOn = false;
+    private currentState = hap.Characteristic.CurrentDoorState.CLOSED;
 
     private readonly garageDoorOpenerService: Service;
     private readonly informationService: Service;
@@ -95,6 +98,23 @@ class UDPGarageDoor implements AccessoryPlugin {
         this.informationService = new hap.Service.AccessoryInformation()
             .setCharacteristic(hap.Characteristic.Manufacturer, "Custom Manufacturer")
             .setCharacteristic(hap.Characteristic.Model, "Custom Model");
+
+        this.client = createSocket('udp4');
+
+        this.client.on('listening', () => {
+            const address = this.client.address();
+            this.log('UDP Client listening on ' + address);
+            this.client.setBroadcast(true)
+            this.client.setMulticastTTL(128);
+            this.client.addMembership('230.185.192.108', '0.0.0.0');
+        });
+
+        this.client.on('message', (message, remote) => {
+            this.log('A: Epic Command Received. Preparing Relay.');
+            this.log('B: From: ' + remote.address + ':' + remote.port +' - ' + message);
+        });
+
+        this.client.bind();
 
         log.info("Switch finished initializing!");
     }
