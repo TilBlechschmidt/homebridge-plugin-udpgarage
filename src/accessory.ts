@@ -74,7 +74,7 @@ class UDPGarageDoor implements AccessoryPlugin {
                 this.log("GET TargetDoorState");
                 callback(null, hap.Characteristic.TargetDoorState.CLOSED);
             })
-            .on(CharacteristicEventTypes.SET, this.setDoorState);
+            .on(CharacteristicEventTypes.SET, this.setDoorState.bind(this));
 
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.ObstructionDetected)
             .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {

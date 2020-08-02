@@ -40,7 +40,7 @@ class UDPGarageDoor {
             this.log("GET TargetDoorState");
             callback(null, hap.Characteristic.TargetDoorState.CLOSED);
         })
-            .on("set" /* SET */, this.setDoorState);
+            .on("set" /* SET */, this.setDoorState.bind(this));
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.ObstructionDetected)
             .on("get" /* GET */, (callback) => {
             this.log("GET ObstructionDetected");
