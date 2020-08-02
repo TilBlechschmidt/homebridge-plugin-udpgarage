@@ -103,10 +103,10 @@ class UDPGarageDoor implements AccessoryPlugin {
 
         this.client.on('listening', () => {
             const address = this.client.address();
-            this.log('UDP Client listening on ' + address);
+            this.log('UDP Client listening on ' + JSON.stringify(address));
             this.client.setBroadcast(true)
             this.client.setMulticastTTL(128);
-            this.client.addMembership('230.185.192.108', '0.0.0.0');
+            this.client.addMembership('224.1.1.1', '0.0.0.0');
         });
 
         this.client.on('message', (message, remote) => {
@@ -114,7 +114,7 @@ class UDPGarageDoor implements AccessoryPlugin {
             this.log('B: From: ' + remote.address + ':' + remote.port +' - ' + message);
         });
 
-        this.client.bind();
+        this.client.bind(5077);
 
         log.info("Switch finished initializing!");
     }
