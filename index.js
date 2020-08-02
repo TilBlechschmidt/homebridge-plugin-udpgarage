@@ -21,7 +21,10 @@ function UDPGarageDoor(log, config) {
     		.on('get', this.getTargetState.bind(this));
 
 	this.ObstructionDetected = this.garageDoorOpener.getCharacteristic(Characteristic.ObstructionDetected);
-	this.ObstructionDetected.on('get', function () { return false; });
+	this.ObstructionDetected.on('get', function(callback) { 
+		console.log("get obstruction detected")
+		callback();
+	});
 
     	this.infoService = new Service.AccessoryInformation();
     	this.infoService
@@ -29,6 +32,9 @@ function UDPGarageDoor(log, config) {
            .setCharacteristic(Characteristic.Model, "Homebridge UDP GarageDoor")
 	   .setCharacteristic(Characteristic.FirmwareRevision,"1.0.0");
 
+    	this.currentDoorState.updateValue( DoorState.CLOSED );
+   	this.targetDoorState.updateValue( DoorState.CLOSED );
+        this.currentDoorState.getValue();
 }
 
 UDPGarageDoor.prototype = {
@@ -56,7 +62,7 @@ UDPGarageDoor.prototype = {
 		}
 	},
 
-	getServices:  function() {
+	getServices: function() {
 		console.log("garage door get services");
 		this.log("garage door get services");
 		return [this.infoService, this.garageDoorOpener];
