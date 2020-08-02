@@ -50,7 +50,8 @@ class UDPGarageDoor implements AccessoryPlugin {
     private readonly client: Socket;
     private readonly log: Logging;
     private readonly name: string;
-    private currentState = hap.Characteristic.CurrentDoorState.CLOSED;
+    private readonly ip: string;
+    private currentState: number = hap.Characteristic.CurrentDoorState.CLOSED;
 
     private readonly garageDoorOpenerService: Service;
     private readonly informationService: Service;
@@ -58,18 +59,7 @@ class UDPGarageDoor implements AccessoryPlugin {
     constructor(log: Logging, config: AccessoryConfig, api: API) {
         this.log = log;
         this.name = config.name;
-
-        // this.switchService = new hap.Service.Switch(this.name);
-        // this.switchService.getCharacteristic(hap.Characteristic.On)
-        //   .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-        //     log.info("Current state of the switch was returned: " + (this.switchOn? "ON": "OFF"));
-        //     callback(undefined, this.switchOn);
-        //   })
-        //   .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-        //     this.switchOn = value as boolean;
-        //     log.info("Switch state was set to: " + (this.switchOn? "ON": "OFF"));
-        //     callback();
-        //   });
+        this.ip = config.ip;
 
         this.garageDoorOpenerService = new hap.Service.GarageDoorOpener(this.name);
 
@@ -84,10 +74,7 @@ class UDPGarageDoor implements AccessoryPlugin {
                 this.log("GET TargetDoorState");
                 callback(null, hap.Characteristic.TargetDoorState.CLOSED);
             })
-            .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-                this.log(`SET TargetDoorState = ${value}`);
-                callback(null, value);
-            });
+            .on(CharacteristicEventTypes.SET, this.setDoorState);
 
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.ObstructionDetected)
             .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
@@ -110,13 +97,51 @@ class UDPGarageDoor implements AccessoryPlugin {
         });
 
         this.client.on('message', (message, remote) => {
-            this.log('A: Epic Command Received. Preparing Relay.');
-            this.log('B: From: ' + remote.address + ':' + remote.port +' - ' + message);
+            this.log('UDP Data from: ' + remote.address + ':' + remote.port +' - ' + message);
+
+            const data = message.toString();
+            const [prefix, command] = [data.slice(0, 3), data.slice(3)];
+
+            if (prefix == "STA") {
+                switch (command) {
+                    case "OPEN":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.OPEN);
+                        break;
+                    case "CLOSE":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.CLOSED);
+                        break;
+                    case "MVUP":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.OPENING);
+                        break;
+                    case "MVDW":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.CLOSING);
+                        break;
+                }
+            }
         });
 
         this.client.bind(5077);
 
         log.info("Switch finished initializing!");
+    }
+
+    updateDoorState(newState: number): void {
+        this.log("Updated door state: " + newState);
+        const characteristic = this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.CurrentDoorState);
+        characteristic.updateValue(newState);
+        this.currentState = newState;
+    }
+
+    setDoorState(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
+        this.log(`SET TargetDoorState = ${value}`);
+
+        const command = value == hap.Characteristic.TargetDoorState.OPEN ? 'OPEN' : 'DOWN';
+        const socket = createSocket('udp4');
+        socket.send(Buffer.from(`CMD${command}`), 5077, this.ip);
+
+        this.log(`sent udp msg: 'CMD${command}'`);
+
+        callback(null, value);
     }
 
     /*

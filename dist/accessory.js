@@ -28,17 +28,7 @@ class UDPGarageDoor {
         this.currentState = hap.Characteristic.CurrentDoorState.CLOSED;
         this.log = log;
         this.name = config.name;
-        // this.switchService = new hap.Service.Switch(this.name);
-        // this.switchService.getCharacteristic(hap.Characteristic.On)
-        //   .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-        //     log.info("Current state of the switch was returned: " + (this.switchOn? "ON": "OFF"));
-        //     callback(undefined, this.switchOn);
-        //   })
-        //   .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-        //     this.switchOn = value as boolean;
-        //     log.info("Switch state was set to: " + (this.switchOn? "ON": "OFF"));
-        //     callback();
-        //   });
+        this.ip = config.ip;
         this.garageDoorOpenerService = new hap.Service.GarageDoorOpener(this.name);
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.CurrentDoorState)
             .on("get" /* GET */, (callback) => {
@@ -50,10 +40,7 @@ class UDPGarageDoor {
             this.log("GET TargetDoorState");
             callback(null, hap.Characteristic.TargetDoorState.CLOSED);
         })
-            .on("set" /* SET */, (value, callback) => {
-            this.log(`SET TargetDoorState = ${value}`);
-            callback(null, value);
-        });
+            .on("set" /* SET */, this.setDoorState);
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.ObstructionDetected)
             .on("get" /* GET */, (callback) => {
             this.log("GET ObstructionDetected");
@@ -71,11 +58,42 @@ class UDPGarageDoor {
             this.client.addMembership('224.1.1.1', '0.0.0.0');
         });
         this.client.on('message', (message, remote) => {
-            this.log('A: Epic Command Received. Preparing Relay.');
-            this.log('B: From: ' + remote.address + ':' + remote.port + ' - ' + message);
+            this.log('UDP Data from: ' + remote.address + ':' + remote.port + ' - ' + message);
+            const data = message.toString();
+            const [prefix, command] = [data.slice(0, 3), data.slice(3)];
+            if (prefix == "STA") {
+                switch (command) {
+                    case "OPEN":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.OPEN);
+                        break;
+                    case "CLOSE":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.CLOSED);
+                        break;
+                    case "MVUP":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.OPENING);
+                        break;
+                    case "MVDW":
+                        this.updateDoorState(hap.Characteristic.CurrentDoorState.CLOSING);
+                        break;
+                }
+            }
         });
         this.client.bind(5077);
         log.info("Switch finished initializing!");
+    }
+    updateDoorState(newState) {
+        this.log("Updated door state: " + newState);
+        const characteristic = this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.CurrentDoorState);
+        characteristic.updateValue(newState);
+        this.currentState = newState;
+    }
+    setDoorState(value, callback) {
+        this.log(`SET TargetDoorState = ${value}`);
+        const command = value == hap.Characteristic.TargetDoorState.OPEN ? 'OPEN' : 'DOWN';
+        const socket = dgram_1.createSocket('udp4');
+        socket.send(Buffer.from(`CMD${command}`), 5077, this.ip);
+        this.log(`sent udp msg: 'CMD${command}'`);
+        callback(null, value);
     }
     /*
      * This method is optional to implement. It is called when HomeKit ask to identify the accessory.
