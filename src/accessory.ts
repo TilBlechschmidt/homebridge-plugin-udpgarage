@@ -51,10 +51,12 @@ class UDPGarageDoor implements AccessoryPlugin {
     private readonly log: Logging;
     private readonly name: string;
     private readonly ip: string;
-    private currentState: number = hap.Characteristic.CurrentDoorState.CLOSED;
 
     private readonly garageDoorOpenerService: Service;
     private readonly informationService: Service;
+
+    private currentState: number = hap.Characteristic.CurrentDoorState.CLOSED;
+    private targetState: number = hap.Characteristic.TargetDoorState.CLOSED;
 
     constructor(log: Logging, config: AccessoryConfig, api: API) {
         this.log = log;
@@ -66,13 +68,13 @@ class UDPGarageDoor implements AccessoryPlugin {
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.CurrentDoorState)
             .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
                 this.log("GET CurrentDoorState");
-                callback(null, hap.Characteristic.CurrentDoorState.CLOSED);
+                callback(null, this.currentState);
             });
 
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.TargetDoorState)
             .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
                 this.log("GET TargetDoorState");
-                callback(null, hap.Characteristic.TargetDoorState.CLOSED);
+                callback(null, this.targetState);
             })
             .on(CharacteristicEventTypes.SET, this.setDoorState.bind(this));
 
@@ -83,8 +85,8 @@ class UDPGarageDoor implements AccessoryPlugin {
             });
 
         this.informationService = new hap.Service.AccessoryInformation()
-            .setCharacteristic(hap.Characteristic.Manufacturer, "Custom Manufacturer")
-            .setCharacteristic(hap.Characteristic.Model, "Custom Model");
+            .setCharacteristic(hap.Characteristic.Manufacturer, "Homegrown")
+            .setCharacteristic(hap.Characteristic.Model, "RPi Zero UDP Garage Door");
 
         this.client = createSocket('udp4');
 
@@ -140,6 +142,8 @@ class UDPGarageDoor implements AccessoryPlugin {
         socket.send(Buffer.from(`CMD${command}`), 5077, this.ip);
 
         this.log(`sent udp msg: 'CMD${command}'`);
+
+        this.targetState = value == hap.Characteristic.TargetDoorState.OPEN ? hap.Characteristic.TargetDoorState.OPEN : hap.Characteristic.TargetDoorState.CLOSED;
 
         callback(null, value);
     }

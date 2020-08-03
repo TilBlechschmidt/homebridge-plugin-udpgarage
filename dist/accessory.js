@@ -26,6 +26,7 @@ let hap;
 class UDPGarageDoor {
     constructor(log, config, api) {
         this.currentState = hap.Characteristic.CurrentDoorState.CLOSED;
+        this.targetState = hap.Characteristic.TargetDoorState.CLOSED;
         this.log = log;
         this.name = config.name;
         this.ip = config.ip;
@@ -33,12 +34,12 @@ class UDPGarageDoor {
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.CurrentDoorState)
             .on("get" /* GET */, (callback) => {
             this.log("GET CurrentDoorState");
-            callback(null, hap.Characteristic.CurrentDoorState.CLOSED);
+            callback(null, this.currentState);
         });
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.TargetDoorState)
             .on("get" /* GET */, (callback) => {
             this.log("GET TargetDoorState");
-            callback(null, hap.Characteristic.TargetDoorState.CLOSED);
+            callback(null, this.targetState);
         })
             .on("set" /* SET */, this.setDoorState.bind(this));
         this.garageDoorOpenerService.getCharacteristic(hap.Characteristic.ObstructionDetected)
@@ -47,8 +48,8 @@ class UDPGarageDoor {
             callback(null, false);
         });
         this.informationService = new hap.Service.AccessoryInformation()
-            .setCharacteristic(hap.Characteristic.Manufacturer, "Custom Manufacturer")
-            .setCharacteristic(hap.Characteristic.Model, "Custom Model");
+            .setCharacteristic(hap.Characteristic.Manufacturer, "Homegrown")
+            .setCharacteristic(hap.Characteristic.Model, "RPi Zero UDP Garage Door");
         this.client = dgram_1.createSocket('udp4');
         this.client.on('listening', () => {
             const address = this.client.address();
@@ -93,6 +94,7 @@ class UDPGarageDoor {
         const socket = dgram_1.createSocket('udp4');
         socket.send(Buffer.from(`CMD${command}`), 5077, this.ip);
         this.log(`sent udp msg: 'CMD${command}'`);
+        this.targetState = value == hap.Characteristic.TargetDoorState.OPEN ? hap.Characteristic.TargetDoorState.OPEN : hap.Characteristic.TargetDoorState.CLOSED;
         callback(null, value);
     }
     /*
